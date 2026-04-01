@@ -67,7 +67,7 @@ def create_upload_url(
         return {
             "media_id": str(media_id),
             "s3_key": s3_key,
-            "upload_url": f"{settings.public_base_url.rstrip('/')}/media/upload/{media_id}",
+            "upload_url": f"/media/upload/{media_id}",
             "upload_method": "PUT",
         }
 

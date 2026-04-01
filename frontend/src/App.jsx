@@ -217,11 +217,14 @@ export default function App() {
         }
       });
 
-      const isLocalUpload = meta.upload_url.startsWith(API_BASE);
+      const uploadUrl = new URL(meta.upload_url, API_BASE);
+      const apiOrigin = new URL(API_BASE).origin;
+      const isLocalUpload =
+        uploadUrl.origin === apiOrigin && uploadUrl.pathname.startsWith("/media/upload/");
       const uploadHeaders = { "Content-Type": file.type || "application/octet-stream" };
       if (isLocalUpload) uploadHeaders.Authorization = `Bearer ${token}`;
 
-      const uploadResponse = await fetch(meta.upload_url, {
+      const uploadResponse = await fetch(uploadUrl.toString(), {
         method: meta.upload_method || "PUT",
         headers: uploadHeaders,
         body: file
