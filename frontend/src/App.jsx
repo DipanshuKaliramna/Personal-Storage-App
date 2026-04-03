@@ -79,6 +79,17 @@ export default function App() {
     setProfilePhotoData(saved);
   }, [userEmail]);
 
+  function clearAuthSession(message = "Session expired. Please log in again.") {
+    setToken("");
+    setUserEmail("");
+    setFeed([]);
+    setAlbums([]);
+    setSharedUrl("");
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    setStatus("");
+    setError(message);
+  }
+
   async function apiRequest(path, options = {}) {
     const headers = { ...(options.headers || {}) };
     if (options.token) headers.Authorization = `Bearer ${options.token}`;
@@ -119,6 +130,10 @@ export default function App() {
       setAlbums(albumsData || []);
       setError("");
     } catch (err) {
+      if (err.message === "Invalid token" || err.message === "User not found") {
+        clearAuthSession();
+        return;
+      }
       setError(err.message);
     }
   }
@@ -167,14 +182,8 @@ export default function App() {
   }
 
   function handleLogout() {
-    setToken("");
-    setUserEmail("");
-    setFeed([]);
-    setAlbums([]);
-    setSharedUrl("");
-    localStorage.removeItem(AUTH_STORAGE_KEY);
+    clearAuthSession("");
     setStatus("Logged out.");
-    setError("");
   }
 
   function handleProfilePhotoSelect(file) {
