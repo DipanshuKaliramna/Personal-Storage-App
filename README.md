@@ -1,12 +1,12 @@
 # StorageApp (UI Like Instagram)
 
-Private photo/video storage with per-user quotas, sharing links, and albums.
+Private file storage with per-user quotas, sharing links, and albums.
 
 ## Motivation
 
 While using Google Drive for storing personal files, I often found the interface cluttered and difficult to navigate when trying to quickly find specific media. Over time, as more files accumulated, managing them became increasingly complex.
 
-To solve this problem, I decided to build my own personal storage platform that focuses on a **clean, simple, and media-centric experience**, similar to an Instagram-style feed where photos and videos are easier to browse and organize.
+To solve this problem, I decided to build my own personal storage platform that focuses on a **clean, simple, and media-centric experience**, similar to an Instagram-style feed where photos, videos, PDFs, and other files are easier to browse and organize.
 
 This project is my attempt to create a **personal storage space** that is easier to use, visually organized, and gives the user more control over their stored media.
 

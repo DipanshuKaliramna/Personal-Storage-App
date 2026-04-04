@@ -18,8 +18,23 @@ function formatBytes(bytes) {
 }
 
 function detectKind(file) {
-  if (file.type.startsWith("video/")) return "video";
-  return "photo";
+  if (file.type?.startsWith("image/")) return "photo";
+  if (file.type?.startsWith("video/")) return "video";
+  return "file";
+}
+
+function getFileExtension(filename) {
+  const parts = filename.split(".");
+  if (parts.length < 2) return "FILE";
+  return parts.pop()?.toUpperCase() || "FILE";
+}
+
+function isPreviewableImage(contentType) {
+  return contentType.startsWith("image/");
+}
+
+function isPreviewableVideo(contentType) {
+  return contentType.startsWith("video/");
 }
 
 function encodePathSegments(path) {
@@ -207,8 +222,8 @@ export default function App() {
 
   async function handleUpload(file) {
     if (!file || !token) return;
-    if (!(file.type?.startsWith("image/") || file.type?.startsWith("video/"))) {
-      setError("Please upload only image or video files.");
+    if (!file.name) {
+      setError("Please choose a valid file to upload.");
       return;
     }
     setBusy(true);
@@ -367,7 +382,7 @@ export default function App() {
             {token ? (
               <>
                 <h1>hey, {userEmail.split("@")[0] || "creator"}</h1>
-                <p>Private vault for photos & videos. Share only when you choose.</p>
+                <p>Private vault for files, videos, images, PDFs, and more. Share only when you choose.</p>
                 <div className="quota">
                   <div className="quota-label">
                     <span>Storage</span>
@@ -464,17 +479,26 @@ export default function App() {
                   rel="noreferrer"
                   title="Open in new tab"
                 >
-                  {post.content_type.startsWith("image/") ? (
+                  {isPreviewableImage(post.content_type) ? (
                     <img src={mediaUrl(post)} alt={post.filename} />
-                  ) : post.content_type.startsWith("video/") ? (
+                  ) : isPreviewableVideo(post.content_type) ? (
                     <video src={mediaUrl(post)} controls preload="metadata" />
                   ) : (
-                    <img src={frontPhoto} alt="Front" />
+                    <div className="file-preview" aria-label={`${post.filename} file preview`}>
+                      <span className="file-extension">{getFileExtension(post.filename)}</span>
+                      <span className="file-kind-label">FILE</span>
+                    </div>
                   )}
                 </a>
                 <div className="card-meta">
                   <h3>{post.filename}</h3>
+                  <p className="card-subtitle">
+                    {post.content_type || "application/octet-stream"} • {formatBytes(post.size_bytes)}
+                  </p>
                   <div className="card-actions">
+                    <a className="ghost action-link" href={mediaUrl(post)} target="_blank" rel="noreferrer">
+                      Open
+                    </a>
                     <button className="ghost" onClick={() => handleShare(post.id)}>Share</button>
                     <button className="ghost" onClick={() => handleAddToAlbum(post.id)}>Add to album</button>
                     <button className="ghost" onClick={() => handleDelete(post.id)}>Delete</button>
@@ -491,7 +515,6 @@ export default function App() {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*,video/*"
         hidden
         onChange={(event) => handleUpload(event.target.files?.[0])}
       />
