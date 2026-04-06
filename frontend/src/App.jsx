@@ -51,8 +51,12 @@ export default function App() {
 
   const [view, setView] = useState("explore");
   const [authMode, setAuthMode] = useState("login");
+  const [authStep, setAuthStep] = useState("credentials");
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [devVerificationCode, setDevVerificationCode] = useState("");
+  const [verificationEmailSent, setVerificationEmailSent] = useState(false);
   const [token, setToken] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [feed, setFeed] = useState([]);
@@ -97,6 +101,10 @@ export default function App() {
   function clearAuthSession(message = "Session expired. Please log in again.") {
     setToken("");
     setUserEmail("");
+    setAuthStep("credentials");
+    setVerificationCode("");
+    setDevVerificationCode("");
+    setVerificationEmailSent(false);
     setFeed([]);
     setAlbums([]);
     setSharedUrl("");
@@ -160,12 +168,19 @@ export default function App() {
     setStatus("");
     try {
       if (authMode === "register") {
-        await apiRequest("/auth/register", {
+        const registerData = await apiRequest("/auth/register", {
           method: "POST",
           body: { email: authEmail, password: authPassword }
         });
+        setAuthStep("verify");
+        setVerificationEmailSent(Boolean(registerData.email_sent));
+        setDevVerificationCode(registerData.dev_verification_code || "");
+        setVerificationCode(registerData.dev_verification_code || "");
+        setStatus(registerData.detail);
+        return;
       }
 
+      setDevVerificationCode("");
       const form = new URLSearchParams();
       form.append("username", authEmail);
       form.append("password", authPassword);
@@ -177,18 +192,85 @@ export default function App() {
       });
       if (!loginResponse.ok) {
         const payload = await loginResponse.json().catch(() => ({}));
+        if (loginResponse.status === 403 && payload.detail === "Account not verified") {
+          setAuthStep("verify");
+        }
         throw new Error(payload.detail || "Invalid credentials");
       }
       const loginData = await loginResponse.json();
 
       setToken(loginData.access_token);
       setUserEmail(authEmail);
+      setAuthStep("credentials");
+      setVerificationCode("");
+      setVerificationEmailSent(false);
       localStorage.setItem(
         AUTH_STORAGE_KEY,
         JSON.stringify({ token: loginData.access_token, email: authEmail })
       );
       setAuthPassword("");
       setStatus("Authenticated.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleVerifySubmit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    setStatus("");
+    try {
+      const loginData = await apiRequest("/auth/verify", {
+        method: "POST",
+        body: { email: authEmail, code: verificationCode }
+      });
+      setToken(loginData.access_token);
+      setUserEmail(authEmail);
+      setAuthStep("credentials");
+      setVerificationCode("");
+      setDevVerificationCode("");
+      setVerificationEmailSent(false);
+      localStorage.setItem(
+        AUTH_STORAGE_KEY,
+        JSON.stringify({ token: loginData.access_token, email: authEmail })
+      );
+      setAuthPassword("");
+      setStatus("Account verified. You are now logged in.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function handleBackToAuth() {
+    setAuthStep("credentials");
+    setVerificationCode("");
+    setDevVerificationCode("");
+    setVerificationEmailSent(false);
+    setError("");
+    setStatus("");
+  }
+
+  async function handleResendVerification() {
+    if (!authEmail) return;
+    setBusy(true);
+    setError("");
+    setStatus("");
+    try {
+      const response = await apiRequest("/auth/resend-verification", {
+        method: "POST",
+        body: { email: authEmail }
+      });
+      setVerificationEmailSent(Boolean(response.email_sent));
+      setDevVerificationCode(response.dev_verification_code || "");
+      if (response.dev_verification_code) {
+        setVerificationCode(response.dev_verification_code);
+      }
+      setStatus(response.detail);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -398,37 +480,81 @@ export default function App() {
                 </div>
               </>
             ) : (
-              <form className="auth-form" onSubmit={handleAuthSubmit}>
-                <h1>{authMode === "login" ? "welcome back" : "create account"}</h1>
-                <p>Authenticate to sync the UI with your backend storage.</p>
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={authEmail}
-                  onChange={(event) => setAuthEmail(event.target.value)}
-                  required
-                />
-                <input
-                  type="password"
-                  placeholder="Password"
-                  value={authPassword}
-                  onChange={(event) => setAuthPassword(event.target.value)}
-                  minLength={8}
-                  required
-                />
-                <div className="profile-actions">
-                  <button className="cta" type="submit" disabled={busy}>
-                    {authMode === "login" ? "Login" : "Register + Login"}
-                  </button>
-                  <button
-                    className="ghost"
-                    type="button"
-                    onClick={() => setAuthMode(authMode === "login" ? "register" : "login")}
-                  >
-                    {authMode === "login" ? "Need account?" : "Have account?"}
-                  </button>
-                </div>
-              </form>
+              authStep === "verify" ? (
+                <form className="auth-form verify-form" onSubmit={handleVerifySubmit}>
+                  <span className="eyebrow">First-time verification</span>
+                  <h1>verify your account</h1>
+                  <p>
+                    We created your account for <strong>{authEmail}</strong>. Enter the 6-digit code to unlock
+                    uploads and your private feed.
+                  </p>
+                  <div className="verify-note">
+                    {verificationEmailSent
+                      ? "We sent a verification code to your email inbox."
+                      : "Email delivery is not configured yet, so use the code shown below in dev."}
+                  </div>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="6-digit code"
+                    value={verificationCode}
+                    onChange={(event) =>
+                      setVerificationCode(event.target.value.replace(/\D/g, "").slice(0, 6))
+                    }
+                    minLength={6}
+                    maxLength={6}
+                    required
+                  />
+                  {devVerificationCode ? (
+                    <div className="dev-note">
+                      Dev code: <strong>{devVerificationCode}</strong>
+                    </div>
+                  ) : null}
+                  <div className="profile-actions">
+                    <button className="cta" type="submit" disabled={busy || verificationCode.length !== 6}>
+                      Verify + Login
+                    </button>
+                    <button className="ghost" type="button" onClick={handleResendVerification} disabled={busy}>
+                      Resend code
+                    </button>
+                    <button className="ghost" type="button" onClick={handleBackToAuth}>
+                      Back
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <form className="auth-form" onSubmit={handleAuthSubmit}>
+                  <h1>{authMode === "login" ? "welcome back" : "create account"}</h1>
+                  <p>Authenticate to sync the UI with your backend storage.</p>
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={authEmail}
+                    onChange={(event) => setAuthEmail(event.target.value)}
+                    required
+                  />
+                  <input
+                    type="password"
+                    placeholder="Password"
+                    value={authPassword}
+                    onChange={(event) => setAuthPassword(event.target.value)}
+                    minLength={8}
+                    required
+                  />
+                  <div className="profile-actions">
+                    <button className="cta" type="submit" disabled={busy}>
+                      {authMode === "login" ? "Login" : "Create account"}
+                    </button>
+                    <button
+                      className="ghost"
+                      type="button"
+                      onClick={() => setAuthMode(authMode === "login" ? "register" : "login")}
+                    >
+                      {authMode === "login" ? "Need account?" : "Have account?"}
+                    </button>
+                  </div>
+                </form>
+              )
             )}
           </div>
         </section>

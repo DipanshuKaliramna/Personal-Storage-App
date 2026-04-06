@@ -326,6 +326,17 @@ button:disabled {
   gap: 0.75rem;
 }
 
+.verify-form {
+  max-width: 520px;
+}
+
+.eyebrow {
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
 .auth-form input {
   width: min(420px, 100%);
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -338,6 +349,21 @@ button:disabled {
 
 .auth-form input:focus {
   outline: 1px solid rgba(255, 180, 81, 0.5);
+}
+
+.dev-note {
+  width: min(420px, 100%);
+  padding: 0.8rem 0.9rem;
+  border-radius: 12px;
+  background: rgba(255, 180, 81, 0.12);
+  border: 1px solid rgba(255, 180, 81, 0.25);
+  color: #ffd8a1;
+}
+
+.verify-note {
+  width: min(420px, 100%);
+  color: var(--muted);
+  font-size: 0.95rem;
 }
 
 .status {

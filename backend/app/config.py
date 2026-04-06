@@ -29,5 +29,13 @@ class Settings(BaseSettings):
 
     share_token_ttl_hours: int = 24 * 7
 
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_use_tls: bool = True
+    smtp_from_email: str | None = None
+    smtp_from_name: str = "StorageApp"
+
 
 settings = Settings()
