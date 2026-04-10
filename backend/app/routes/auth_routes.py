@@ -1,4 +1,5 @@
 import random
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -11,28 +12,31 @@ from ..auth import hash_password, verify_password, create_access_token
 from ..email import send_verification_email, smtp_is_configured
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+logger = logging.getLogger(__name__)
 
 
 def _generate_verification_code() -> str:
     return f"{random.randint(0, 999999):06d}"
 
 
-def _deliver_verification_code(email: str, code: str) -> tuple[bool, str | None]:
+def _deliver_verification_code(email: str, code: str) -> tuple[bool, str | None, str | None]:
     if smtp_is_configured():
         try:
             sent = send_verification_email(email, code)
             if sent:
-                return True, None
-        except Exception:
+                return True, None, None
+        except Exception as exc:
+            logger.exception("Verification email delivery failed for %s", email)
             if settings.env != "dev":
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Could not send verification email",
                 )
+            return False, code, str(exc)
 
     if settings.env == "dev":
-        return False, code
-    return False, None
+        return False, code, "SMTP is not configured"
+    return False, None, None
 
 
 @router.post("/register", response_model=schemas.RegisterOut)
@@ -50,7 +54,7 @@ def register(payload: schemas.UserCreate, db: Session = Depends(get_db)):
     )
     db.add(user)
     try:
-        email_sent, dev_code = _deliver_verification_code(user.email, verification_code)
+        email_sent, dev_code, email_error = _deliver_verification_code(user.email, verification_code)
         db.commit()
     except HTTPException:
         db.rollback()
@@ -63,6 +67,7 @@ def register(payload: schemas.UserCreate, db: Session = Depends(get_db)):
         detail="Account created. Please verify your email before logging in.",
         email_sent=email_sent,
         dev_verification_code=dev_code,
+        email_error=email_error,
     )
 
 
@@ -96,11 +101,12 @@ def resend_verification(payload: schemas.ResendVerification, db: Session = Depen
     user.verification_code = verification_code
     db.commit()
 
-    email_sent, dev_code = _deliver_verification_code(user.email, verification_code)
+    email_sent, dev_code, email_error = _deliver_verification_code(user.email, verification_code)
     return schemas.ResendVerificationOut(
         detail="A fresh verification code has been sent.",
         email_sent=email_sent,
         dev_verification_code=dev_code,
+        email_error=email_error,
     )
 
 

@@ -1,8 +1,14 @@
+from pathlib import Path
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
+
+
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(env_file=ENV_FILE, env_file_encoding="utf-8")
 
     app_name: str = "StorageApp"
     env: str = "dev"
@@ -36,6 +42,17 @@ class Settings(BaseSettings):
     smtp_use_tls: bool = True
     smtp_from_email: str | None = None
     smtp_from_name: str = "StorageApp"
+
+    @field_validator("debug", mode="before")
+    @classmethod
+    def coerce_debug(cls, value):
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"release", "prod", "production", "0", "false", "no", "off"}:
+                return False
+            if normalized in {"dev", "development", "1", "true", "yes", "on"}:
+                return True
+        return value
 
 
 settings = Settings()

@@ -23,6 +23,7 @@ class RegisterOut(BaseModel):
     detail: str
     email_sent: bool = False
     dev_verification_code: str | None = None
+    email_error: str | None = None
 
 
 class TokenOut(BaseModel):
@@ -43,6 +44,7 @@ class ResendVerificationOut(BaseModel):
     detail: str
     email_sent: bool = False
     dev_verification_code: str | None = None
+    email_error: str | None = None
 
 
 class MediaCreate(BaseModel):
