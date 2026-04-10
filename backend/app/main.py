@@ -1,10 +1,11 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
-from sqlalchemy import inspect, text
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from .config import settings
-from .db import Base, engine
+from .db import engine
 from .routes import auth_routes, media_routes, album_routes, share_routes
 
 
@@ -18,25 +19,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def ensure_dev_schema():
-    inspector = inspect(engine)
-    if "users" not in inspector.get_table_names():
-        return
-
-    columns = {column["name"] for column in inspector.get_columns("users")}
-    with engine.begin() as connection:
-        if "is_verified" not in columns:
-            connection.execute(text("ALTER TABLE users ADD COLUMN is_verified BOOLEAN DEFAULT FALSE"))
-            connection.execute(text("UPDATE users SET is_verified = TRUE WHERE is_verified IS NULL"))
-        if "verification_code" not in columns:
-            connection.execute(text("ALTER TABLE users ADD COLUMN verification_code VARCHAR(6)"))
-
 
 @app.on_event("startup")
 def on_startup():
-    if settings.env == "dev":
-        Base.metadata.create_all(bind=engine)
-        ensure_dev_schema()
     if settings.storage_backend == "local":
         Path(settings.local_upload_dir).mkdir(parents=True, exist_ok=True)
 
@@ -44,6 +29,19 @@ def on_startup():
 @app.get("/")
 def root():
     return {"status": "ok", "app": settings.app_name}
+
+
+@app.get("/healthz")
+def healthcheck():
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except SQLAlchemyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database unavailable",
+        ) from exc
+    return {"status": "ok"}
 
 
 app.include_router(auth_routes.router)
