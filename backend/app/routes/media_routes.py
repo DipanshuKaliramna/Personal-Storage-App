@@ -5,6 +5,7 @@ from pathlib import Path
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from ..config import settings
@@ -33,6 +34,43 @@ def _build_s3_client():
 def _object_key(user_id: uuid.UUID, media_id: uuid.UUID, filename: str) -> str:
     safe_name = Path(filename).name
     return f"users/{user_id}/{media_id}/{safe_name}"
+
+
+def build_media_download_url(media_id: uuid.UUID) -> str:
+    return f"{settings.public_base_url.rstrip('/')}/media/{media_id}/download"
+
+
+def _serialize_media(item: models.MediaItem) -> schemas.MediaOut:
+    return schemas.MediaOut(
+        id=item.id,
+        kind=item.kind,
+        filename=item.filename,
+        content_type=item.content_type,
+        size_bytes=item.size_bytes,
+        s3_key=item.s3_key,
+        created_at=item.created_at,
+        file_url=build_media_download_url(item.id),
+    )
+
+
+def _build_local_file_response(item: models.MediaItem):
+    target = Path(settings.local_upload_dir) / item.s3_key
+    if not target.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media file not found")
+    return FileResponse(path=target, media_type=item.content_type, filename=item.filename)
+
+
+def _build_s3_download_response(item: models.MediaItem):
+    try:
+        s3 = _build_s3_client()
+        presigned_url = s3.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": settings.s3_bucket, "Key": item.s3_key},
+            ExpiresIn=3600,
+        )
+    except (BotoCoreError, ClientError) as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="S3 not configured") from exc
+    return RedirectResponse(url=presigned_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
 
 @router.post("/upload-url")
@@ -132,7 +170,22 @@ def list_media(
         .order_by(models.MediaItem.created_at.desc())
         .all()
     )
-    return items
+    return [_serialize_media(item) for item in items]
+
+
+@router.get("/{media_id}/download")
+def download_media(
+    media_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    item = db.get(models.MediaItem, media_id)
+    if not item or item.owner_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Media not found")
+
+    if settings.storage_backend == "local":
+        return _build_local_file_response(item)
+    return _build_s3_download_response(item)
 
 
 @router.delete("/{media_id}")

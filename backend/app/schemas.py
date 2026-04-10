@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 import uuid
 
 
@@ -9,6 +9,8 @@ class UserCreate(BaseModel):
 
 
 class UserOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: uuid.UUID
     email: EmailStr
     is_verified: bool
@@ -55,6 +57,8 @@ class MediaCreate(BaseModel):
 
 
 class MediaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: uuid.UUID
     kind: str
     filename: str
@@ -62,6 +66,7 @@ class MediaOut(BaseModel):
     size_bytes: int
     s3_key: str
     created_at: datetime
+    file_url: str
 
 
 class AlbumCreate(BaseModel):
@@ -69,6 +74,8 @@ class AlbumCreate(BaseModel):
 
 
 class AlbumOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: uuid.UUID
     title: str
     created_at: datetime

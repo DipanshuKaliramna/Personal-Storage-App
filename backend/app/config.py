@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     app_name: str = "StorageApp"
     env: str = "dev"
     debug: bool = True
+    cors_allowed_origins: str = "http://localhost:5173,http://127.0.0.1:5173,http://[::1]:5173"
 
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/storageapp"
 
@@ -53,6 +54,9 @@ class Settings(BaseSettings):
             if normalized in {"dev", "development", "1", "true", "yes", "on"}:
                 return True
         return value
+
+    def cors_allowed_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_allowed_origins.split(",") if origin.strip()]
 
 
 settings = Settings()

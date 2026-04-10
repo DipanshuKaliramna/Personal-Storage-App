@@ -37,14 +37,6 @@ function isPreviewableVideo(contentType) {
   return contentType.startsWith("video/");
 }
 
-function encodePathSegments(path) {
-  return path
-    .split("/")
-    .filter(Boolean)
-    .map((segment) => encodeURIComponent(segment))
-    .join("/");
-}
-
 export default function App() {
   const fileInputRef = useRef(null);
   const profilePhotoInputRef = useRef(null);
@@ -396,7 +388,7 @@ export default function App() {
         token,
         body: { media_id: mediaId }
       });
-      const url = `${API_BASE}/share/${share.token}`;
+      const url = share.token;
       setSharedUrl(url);
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(url);
@@ -419,7 +411,7 @@ export default function App() {
   }
 
   function mediaUrl(item) {
-    return `${API_BASE}/uploads/${encodePathSegments(item.s3_key)}`;
+    return item.file_url;
   }
 
   return (

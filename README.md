@@ -39,7 +39,8 @@ npm run dev
 * Default quota: 15 GB free, 25 GB premium.
 * Upload flow: request presigned URL, upload to S3, then list in feed.
 * Local mode (no AWS): set `STORAGE_BACKEND=local` in `backend/.env`.
+* For deployment, set `PUBLIC_BASE_URL` to your backend's public HTTPS URL and `CORS_ALLOWED_ORIGINS` to the frontend origin(s), comma-separated.
 
   * `POST /media/upload-url` returns a local `PUT` URL.
   * Upload file bytes to that URL with `Authorization: Bearer <token>`.
-  * Files are stored in `backend/uploads` and served from `/uploads/...`.
+  * Files are stored in `backend/uploads`.
