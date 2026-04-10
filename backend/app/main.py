@@ -18,17 +18,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+@app.get("/")
+def root():
+    return {"status": "ok", "app": settings.app_name}
 
 
 @app.on_event("startup")
 def on_startup():
     if settings.storage_backend == "local":
         Path(settings.local_upload_dir).mkdir(parents=True, exist_ok=True)
-
-
-@app.get("/")
-def root():
-    return {"status": "ok", "app": settings.app_name}
 
 
 @app.get("/healthz")

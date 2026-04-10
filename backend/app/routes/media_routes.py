@@ -1,5 +1,4 @@
 import uuid
-from datetime import datetime
 from pathlib import Path
 
 import boto3
@@ -12,6 +11,7 @@ from ..config import settings
 from ..db import get_db
 from .. import models, schemas
 from ..auth import get_current_user
+from ..time_utils import utc_now
 
 router = APIRouter(prefix="/media", tags=["media"])
 
@@ -94,7 +94,7 @@ def create_upload_url(
         content_type=payload.content_type,
         size_bytes=payload.size_bytes,
         s3_key=s3_key,
-        created_at=datetime.utcnow(),
+        created_at=utc_now(),
     )
     current_user.used_bytes += payload.size_bytes
 

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from .config import settings
 from .db import get_db
 from . import models
+from .time_utils import utc_now
 
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
@@ -23,7 +24,7 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 
 def create_access_token(user_id: str) -> str:
-    expire = datetime.utcnow() + timedelta(minutes=settings.jwt_access_token_minutes)
+    expire = utc_now() + timedelta(minutes=settings.jwt_access_token_minutes)
     payload = {"sub": user_id, "exp": expire}
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 

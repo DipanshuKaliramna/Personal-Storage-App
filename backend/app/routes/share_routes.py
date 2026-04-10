@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 
 from botocore.exceptions import BotoCoreError, ClientError
@@ -11,6 +11,7 @@ from ..config import settings
 from ..db import get_db
 from .. import models, schemas
 from ..auth import get_current_user
+from ..time_utils import utc_now
 from .media_routes import _build_s3_client
 
 router = APIRouter(prefix="/share", tags=["share"])
@@ -39,7 +40,7 @@ def create_share_link(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Album not found")
 
     token = secrets.token_urlsafe(24)
-    expires_at = datetime.utcnow() + timedelta(hours=settings.share_token_ttl_hours)
+    expires_at = utc_now() + timedelta(hours=settings.share_token_ttl_hours)
 
     link = models.ShareLink(
         owner_id=current_user.id,
@@ -59,7 +60,7 @@ def resolve_share_link(token: str, db: Session = Depends(get_db)):
     link = db.query(models.ShareLink).filter(models.ShareLink.token == token).first()
     if not link:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Link not found")
-    if link.expires_at < datetime.utcnow():
+    if link.expires_at < utc_now():
         raise HTTPException(status_code=status.HTTP_410_GONE, detail="Link expired")
 
     if link.media_id:
@@ -77,7 +78,7 @@ def download_shared_media(token: str, db: Session = Depends(get_db)):
     link = db.query(models.ShareLink).filter(models.ShareLink.token == token).first()
     if not link:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Link not found")
-    if link.expires_at < datetime.utcnow():
+    if link.expires_at < utc_now():
         raise HTTPException(status_code=status.HTTP_410_GONE, detail="Link expired")
     if not link.media_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Album share downloads are not supported")
