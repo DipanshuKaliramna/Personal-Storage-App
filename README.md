@@ -44,6 +44,7 @@ npm run dev
 * Frontend deployments should set `VITE_API_BASE_URL` to the public backend URL.
 * Backend health checks can target `GET /healthz`.
 * The backend no longer creates or patches tables on startup. Run Alembic migrations explicitly before starting the app.
+* OAuth is disabled by default until a real provider flow is implemented.
 
   * `POST /media/upload-url` returns a local `PUT` URL.
   * Upload file bytes to that URL with `Authorization: Bearer <token>`.
@@ -79,3 +80,21 @@ Set these backend env vars before deploying:
 * `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` when using S3
 
 If you deploy with Docker, [backend/Dockerfile](/home/dipanshu/Desktop/Projects/Storageapp(UILikeInsta)/backend/Dockerfile) runs migrations before starting Uvicorn.
+
+## Render Deploy
+
+This repo now includes [render.yaml](/home/dipanshu/Desktop/Projects/Storageapp(UILikeInsta)/render.yaml) for a concrete deployment target:
+
+* `storageapp-backend` as a Docker web service
+* `storageapp-frontend` as a static site
+* `storageapp-postgres` as the managed database
+
+After creating the Render Blueprint, set these values in Render:
+
+* `PUBLIC_BASE_URL=https://<your-backend>.onrender.com`
+* `CORS_ALLOWED_ORIGINS=https://<your-frontend>.onrender.com`
+* `VITE_API_BASE_URL=https://<your-backend>.onrender.com`
+* `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`
+* `SMTP_HOST`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`
+
+For local databases that existed before Alembic, run `alembic stamp head` once. For fresh Render databases, the Docker startup command will run `alembic upgrade head`.

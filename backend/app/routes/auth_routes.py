@@ -36,7 +36,10 @@ def _deliver_verification_code(email: str, code: str) -> tuple[bool, str | None,
 
     if settings.env == "dev":
         return False, code, "SMTP is not configured"
-    return False, None, None
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail="Email delivery is not configured",
+    )
 
 
 @router.post("/register", response_model=schemas.RegisterOut)
@@ -99,9 +102,15 @@ def resend_verification(payload: schemas.ResendVerification, db: Session = Depen
 
     verification_code = _generate_verification_code()
     user.verification_code = verification_code
-    db.commit()
-
-    email_sent, dev_code, email_error = _deliver_verification_code(user.email, verification_code)
+    try:
+        email_sent, dev_code, email_error = _deliver_verification_code(user.email, verification_code)
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise
     return schemas.ResendVerificationOut(
         detail="A fresh verification code has been sent.",
         email_sent=email_sent,
@@ -124,17 +133,18 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
     return schemas.TokenOut(access_token=token)
 
 
-@router.get("/oauth/{provider}/login")
-def oauth_login(provider: str):
-    return {
-        "message": "OAuth flow not wired yet",
-        "provider": provider,
-    }
+if settings.oauth_enabled:
+    @router.get("/oauth/{provider}/login")
+    def oauth_login(provider: str):
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail=f"OAuth provider '{provider}' is not implemented yet",
+        )
 
 
-@router.get("/oauth/{provider}/callback")
-def oauth_callback(provider: str):
-    return {
-        "message": "OAuth callback not wired yet",
-        "provider": provider,
-    }
+    @router.get("/oauth/{provider}/callback")
+    def oauth_callback(provider: str):
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail=f"OAuth provider '{provider}' is not implemented yet",
+        )

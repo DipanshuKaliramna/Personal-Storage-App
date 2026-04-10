@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     jwt_secret: str = "change-me"
     jwt_algorithm: str = "HS256"
     jwt_access_token_minutes: int = 60 * 24
+    oauth_enabled: bool = False
 
     storage_backend: str = "local"  # local | s3
     local_upload_dir: str = "uploads"
